@@ -85,6 +85,8 @@ func main() {
 
 	raftopt.AddInit(volmgrAddr.Ips)
 
+	logger.Fatal("init volmgr service  %v", volmgrAddr)
+
 	vs, err := volmgr.NewVolMgrServer(&volmgrAddr)
 	if err != nil {
 		logger.Fatal("init volmgr service failed: %v, volmgr stopped!", err)
