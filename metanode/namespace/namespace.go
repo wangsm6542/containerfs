@@ -284,10 +284,6 @@ func (ns *nameSpace) ExpandNameSpace(blockGroups []*mp.BlockGroup) int32 {
 
 // CreateDirDirect ...
 func (ns *nameSpace) CreateDirDirect(pinode uint64, name string) (int32, uint64) {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	//to check parent dir's existence
 
@@ -327,10 +323,6 @@ func (ns *nameSpace) CreateDirDirect(pinode uint64, name string) (int32, uint64)
 
 // GetSymLinkInfoDirect ...
 func (ns *nameSpace) GetSymLinkInfoDirect(pinode uint64, name string) (int32, uint64) {
-	ns.RLock()
-	defer ns.RUnlock()
-
-	defer catchPanic()
 
 	gRet, dirent := ns.dentryDBGet(pinode, name)
 	if gRet != 0 {
@@ -342,10 +334,6 @@ func (ns *nameSpace) GetSymLinkInfoDirect(pinode uint64, name string) (int32, ui
 
 // GetInodeInfoDirect ...
 func (ns *nameSpace) GetInodeInfoDirect(pinode uint64, name string) (int32, *mp.InodeInfo, uint64) {
-	ns.RLock()
-	defer ns.RUnlock()
-
-	defer catchPanic()
 
 	var pInodeInfo *mp.InodeInfo
 
@@ -362,10 +350,6 @@ func (ns *nameSpace) GetInodeInfoDirect(pinode uint64, name string) (int32, *mp.
 
 // StatDirect ...
 func (ns *nameSpace) StatDirect(pinode uint64, name string) (uint32, uint64, int32) {
-	ns.RLock()
-	ns.RUnlock()
-
-	defer catchPanic()
 
 	gRet, dirent := ns.dentryDBGet(pinode, name)
 	if gRet != 0 {
@@ -377,8 +361,6 @@ func (ns *nameSpace) StatDirect(pinode uint64, name string) (uint32, uint64, int
 
 // ListDirect ...
 func (ns *nameSpace) ListDirect(pinode uint64) ([]*mp.DirentN, int32) {
-	ns.RLock()
-	defer ns.RUnlock()
 
 	if _, err := ns.inodeDBGet(pinode); err != nil {
 		if err == raftopt.ErrKeyNotFound {
@@ -396,10 +378,6 @@ func (ns *nameSpace) ListDirect(pinode uint64) ([]*mp.DirentN, int32) {
 
 // DeleteDirDirect ...
 func (ns *nameSpace) DeleteDirDirect(pinode uint64, name string) int32 {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	gRet, dirent := ns.dentryDBGet(pinode, name)
 	if gRet != 0 {
@@ -413,10 +391,6 @@ func (ns *nameSpace) DeleteDirDirect(pinode uint64, name string) int32 {
 
 // RenameDirect ...
 func (ns *nameSpace) RenameDirect(oldpinode uint64, oldName string, newpinode uint64, newName string) int32 {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	gRet, dirent := ns.dentryDBGet(oldpinode, oldName)
 	if gRet != 0 {
@@ -437,10 +411,6 @@ func (ns *nameSpace) RenameDirect(oldpinode uint64, oldName string, newpinode ui
 
 // CreateFileDirect ...
 func (ns *nameSpace) CreateFileDirect(pinode uint64, name string) (int32, uint64) {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	//to check parent dir's existence
 	if _, err := ns.inodeDBGet(pinode); err != nil {
@@ -476,10 +446,6 @@ func (ns *nameSpace) CreateFileDirect(pinode uint64, name string) (int32, uint64
 
 // DeleteFileDirect ...
 func (ns *nameSpace) DeleteFileDirect(pinode uint64, name string) int32 {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	gRet, pDirent := ns.dentryDBGet(pinode, name)
 	if gRet != 0 {
@@ -512,10 +478,6 @@ func (ns *nameSpace) DeleteFileDirect(pinode uint64, name string) int32 {
 
 // DeleteSymLinkDirect ...
 func (ns *nameSpace) DeleteSymLinkDirect(pinode uint64, name string) int32 {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	ns.dentryDBDelete(pinode, name)
 
@@ -524,10 +486,6 @@ func (ns *nameSpace) DeleteSymLinkDirect(pinode uint64, name string) int32 {
 
 // GetFileChunksDirect ...
 func (ns *nameSpace) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.ChunkInfo, uint64) {
-	ns.RLock()
-	defer ns.RUnlock()
-
-	defer catchPanic()
 
 	//to check parent dir's existence
 	if _, err := ns.inodeDBGet(pinode); err != nil {
@@ -550,10 +508,6 @@ func (ns *nameSpace) GetFileChunksDirect(pinode uint64, name string) (int32, []*
 
 // AllocateChunk ...
 func (ns *nameSpace) AllocateChunk() (int32, *mp.ChunkInfoWithBG) {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	var chunkInfo = mp.ChunkInfoWithBG{}
 	ret, _, blockGroup := ns.chooseBlockGroup()
@@ -579,10 +533,6 @@ func (ns *nameSpace) AllocateChunk() (int32, *mp.ChunkInfoWithBG) {
 
 // SyncChunk ...
 func (ns *nameSpace) SyncChunk(pinode uint64, name string, chunkinfo *mp.ChunkInfo) int32 {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	var ret int32
 
@@ -651,10 +601,6 @@ func (ns *nameSpace) SyncChunk(pinode uint64, name string, chunkinfo *mp.ChunkIn
 
 // AsyncChunk ...
 func (ns *nameSpace) AsyncChunk(pinode uint64, name string, chunkid uint64, commitSize uint32, blockGroupID uint64) int32 {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	gRet, dirent := ns.dentryDBGet(pinode, name)
 	if gRet != 0 {
@@ -705,8 +651,11 @@ func (ns *nameSpace) AsyncChunk(pinode uint64, name string, chunkid uint64, comm
 		return 1
 	}
 
+	ns.Lock()
+
 	ok, pTmpBlockGroup := ns.blockGroupDBGet(blockGroupID)
 	if !ok {
+		ns.Unlock()
 		return 2
 	}
 	pTmpBlockGroup.FreeSize = pTmpBlockGroup.FreeSize - int64(blockGroupUsed)
@@ -717,8 +666,11 @@ func (ns *nameSpace) AsyncChunk(pinode uint64, name string, chunkid uint64, comm
 
 	err = ns.blockGroupDBSet(blockGroupID, pTmpBlockGroup)
 	if err != nil {
+		ns.Unlock()
 		return 1
 	}
+
+	ns.Unlock()
 
 	return 0
 
@@ -731,7 +683,6 @@ const (
 
 // chooseBlockGroup ...
 func (ns *nameSpace) chooseBlockGroup() (int32, uint64, *mp.BlockGroupWithHost) {
-	defer catchPanic()
 
 	var blockGroupIndexs []int
 
@@ -782,8 +733,6 @@ func (ns *nameSpace) chooseBlockGroup() (int32, uint64, *mp.BlockGroupWithHost) 
 // releaseBlockGroup ...
 func (ns *nameSpace) releaseBlockGroup(blockGroupID uint64, chunSize int32) {
 
-	defer catchPanic()
-
 	ok, blockGroup := ns.blockGroupDBGet(blockGroupID)
 	if !ok {
 		return
@@ -811,10 +760,6 @@ func (ns *nameSpace) releaseBlockGroup(blockGroupID uint64, chunSize int32) {
 
 // SymLink ...
 func (ns *nameSpace) SymLink(pInode uint64, newName string, target string) (int32, uint64) {
-	ns.Lock()
-	defer ns.Unlock()
-
-	defer catchPanic()
 
 	/*update inode info*/
 	inodeID, err := ns.AllocateInodeID()
@@ -841,10 +786,6 @@ func (ns *nameSpace) SymLink(pInode uint64, newName string, target string) (int3
 
 // SymLink ...
 func (ns *nameSpace) ReadLink(inode uint64) (int32, string) {
-	ns.RLock()
-	defer ns.RUnlock()
-
-	defer catchPanic()
 
 	var ret int32
 
@@ -979,8 +920,6 @@ func decodeKey(key string) (uint64, string) {
 
 // DentryDBGet ...
 func (ns *nameSpace) DentryDBGet(pinode uint64, name string) (ret int32, d *mp.Dirent) {
-	ns.RLock()
-	defer ns.RUnlock()
 	ret, d = ns.dentryDBGet(pinode, name)
 	return
 }
@@ -1070,8 +1009,6 @@ func (ns *nameSpace) dentryDBDelete(pinode uint64, name string) error {
 
 // BlockGroupDBGet ...
 func (ns *nameSpace) BlockGroupDBGet(k uint64) (ret bool, bg *mp.BlockGroup) {
-	ns.RLock()
-	defer ns.RUnlock()
 	ret, bg = ns.blockGroupDBGet(k)
 	return
 }

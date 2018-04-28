@@ -746,15 +746,13 @@ func (cfile *CFile) WriteThread() {
 
 				var ti uint32
 				if chanData.flushFlag {
-
 					for cfile.Status == FILE_NORMAL {
 						if len(cfile.DataCache) == 0 {
 							break
 						}
 						ti++
-						time.Sleep(time.Millisecond * 5)
+						time.Sleep(time.Millisecond)
 					}
-
 					cfile.FlushSignal <- struct{}{}
 				}
 
@@ -766,7 +764,7 @@ func (cfile *CFile) WriteThread() {
 						break
 					}
 					ti++
-					time.Sleep(time.Millisecond * 5)
+					time.Sleep(time.Millisecond)
 				}
 
 				if cfile.CurChunk != nil {
@@ -804,7 +802,7 @@ ALLOCATECHUNK:
 				if tmpDataCacheLen == 0 {
 					break
 				}
-				time.Sleep(time.Millisecond * 10)
+				time.Sleep(time.Millisecond)
 				if tmpDataCacheLen == len(cfile.DataCache) {
 					ti++
 				} else {

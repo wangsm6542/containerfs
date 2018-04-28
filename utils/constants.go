@@ -34,3 +34,7 @@ const (
 	BlockGroupSize = int64(BlkSizeG * 1024 * 1024 * 1024)
 	ChunkSize      = 64 * 1024 * 1024
 )
+
+const (
+	MaxMsgSize = 4 * 1024 * 1024
+)
