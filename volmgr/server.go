@@ -58,19 +58,17 @@ func NewVolMgrServer(volmgrAddr *VolMgrServerAddr) (*VolMgrServer, error) {
 	var vs VolMgrServer
 	var err error
 
-
 	vs.NodeID = volmgrAddr.NodeID
 	vs.volmgrAddr = volmgrAddr
 	vs.Resolver = raftopt.NewClusterResolver()
-	vs.BgStatusMap =  make(map[uint64]int32)
- 
+	vs.BgStatusMap = make(map[uint64]int32)
+
 	addr, ok := raftopt.ClusterAddrDatabase[volmgrAddr.NodeID]
 	if !ok {
 		logger.Error("NewVolMgrServer ClusterAddrDatabase get failed")
 		return nil, fmt.Errorf("no such address info. nodeId: %d", volmgrAddr.NodeID)
 	}
-	
-	vs.Addr = addr	
+	vs.Addr = addr
 
 	err = common.StartRaftServer(&vs.RaftServer, vs.Resolver, addr, volmgrAddr.NodeID)
 	if err != nil {
@@ -82,7 +80,6 @@ func NewVolMgrServer(volmgrAddr *VolMgrServerAddr) (*VolMgrServer, error) {
 		vs.Resolver.AddNode(p.ID, nil)
 	}
 
-
 	vs.showLeaders()
 	vs.startHealthCheck()
 
@@ -92,11 +89,10 @@ func NewVolMgrServer(volmgrAddr *VolMgrServerAddr) (*VolMgrServer, error) {
 //Load loads cluster meta data and volumes from disk
 func (vs *VolMgrServer) Load() error {
 
-fmt.Println(vs.RaftServer)
-fmt.Println(vs.volmgrAddr.Peers)
-fmt.Println(vs.volmgrAddr.NodeID)
-fmt.Println(vs.volmgrAddr.Waldir)
-
+	fmt.Println(vs.RaftServer)
+	fmt.Println(vs.volmgrAddr.Peers)
+	fmt.Println(vs.volmgrAddr.NodeID)
+	fmt.Println(vs.volmgrAddr.Waldir)
 
 	sm, sg, err := raftopt.CreateClusterKvStateMachine(vs.RaftServer, vs.volmgrAddr.Peers, vs.volmgrAddr.NodeID, vs.volmgrAddr.Waldir, "Cluster", 1)
 	if err != nil {

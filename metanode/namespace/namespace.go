@@ -1027,7 +1027,7 @@ func (ns *nameSpace) dentryGetRange(pinode uint64) (bool, []*mp.DirentN) {
 		if err != nil {
 			return false, []*mp.DirentN{}
 		}
-		pid, name := decodeKey(v.K)
+		_, name := decodeKey(v.K)
 		direntN := mp.DirentN{Name: name, Inode: dirent.Inode, InodeType: dirent.InodeType}
 		direntNs = append(direntNs, &direntN)
 	}
