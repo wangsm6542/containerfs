@@ -122,7 +122,7 @@ func (f *File) Attr(ctx context.Context, a *bfuse.Attr) error {
 			return nil
 		}
 
-		logger.Error("GetSymLinkInfoDirect inode %v", inode)
+		logger.Debug("GetSymLinkInfoDirect inode %v", inode)
 
 		a.Inode = uint64(inode)
 		a.Mode = 0666 | os.ModeSymlink
@@ -202,32 +202,6 @@ func (f *File) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.Ope
 	return f, nil
 }
 
-// Release to release the file
-func (f *File) Release(ctx context.Context, req *bfuse.ReleaseRequest) error {
-
-	logger.Debug("Release start : name %v pinode %v pname %v", f.name, f.parent.inode, f.parent.name)
-
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	var err error
-	if int(req.Flags)&os.O_WRONLY != 0 || int(req.Flags)&os.O_RDWR != 0 {
-		f.writers--
-		if ret := f.cfile.CloseWrite(); ret != 0 {
-			logger.Error("Release CloseWrite err ...")
-			err = bfuse.Errno(syscall.EIO)
-		}
-	}
-	f.handles--
-	if f.handles == 0 {
-		f.cfile.Close()
-		f.cfile = nil
-	}
-	logger.Debug("Release end : name %v pinode %v pname %v", f.name, f.parent.inode, f.parent.name)
-
-	return err
-}
-
 // Read to read the data of file by offset and length
 func (f *File) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfuse.ReadResponse) error {
 
@@ -275,7 +249,7 @@ func (f *File) Write(ctx context.Context, req *bfuse.WriteRequest, resp *bfuse.W
 // Flush to sync the file
 func (f *File) Flush(ctx context.Context, req *bfuse.FlushRequest) error {
 
-	//logger.Debug("Flush start : name %v ,inode %v, pinode %v pname %v", f.name, f.inode, f.parent.inode, f.parent.name)
+	logger.Debug("Flush start : name %v ,inode %v, pinode %v pname %v", f.name, f.inode, f.parent.inode, f.parent.name)
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -304,6 +278,32 @@ func (f *File) Fsync(ctx context.Context, req *bfuse.FsyncRequest) error {
 	logger.Debug("Fsync end : name %v ,inode %v, pinode %v pname %v", f.name, f.inode, f.parent.inode, f.parent.name)
 
 	return nil
+}
+
+// Release to release the file
+func (f *File) Release(ctx context.Context, req *bfuse.ReleaseRequest) error {
+
+	logger.Debug("Release start : name %v pinode %v pname %v", f.name, f.parent.inode, f.parent.name)
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var err error
+	if int(req.Flags)&os.O_WRONLY != 0 || int(req.Flags)&os.O_RDWR != 0 {
+		f.writers--
+		if ret := f.cfile.CloseWrite(); ret != 0 {
+			logger.Error("Release CloseWrite err ...")
+			err = bfuse.Errno(syscall.EIO)
+		}
+	}
+	f.handles--
+	if f.handles == 0 {
+		f.cfile.Close()
+		f.cfile = nil
+	}
+	logger.Debug("Release end : name %v pinode %v pname %v", f.name, f.parent.inode, f.parent.name)
+
+	return err
 }
 
 // Setattr to set attributes of the file

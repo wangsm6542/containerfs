@@ -24,8 +24,8 @@ const (
 
 //fuse cache life-cycle
 const (
-	FUSE_ATTR_CACHE_LIFE   = time.Second
-	FUSE_LOOKUP_CACHE_LIFE = time.Second
+	FUSE_ATTR_CACHE_LIFE   = 0 * time.Second
+	FUSE_LOOKUP_CACHE_LIFE = 0 * time.Second
 )
 
 //block and chunk size

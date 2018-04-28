@@ -38,9 +38,14 @@ type VolumeKvStateMachine struct {
 	inodeItem  btreeinstance.InodeKV
 	bgItem     btreeinstance.BGKV
 
-	dentryData     *btree.BTree
-	inodeData      *btree.BTree
-	blockGroupData *btree.BTree
+	dentryDataLocker sync.RWMutex
+	dentryData       *btree.BTree
+
+	inodeDataLocker sync.RWMutex
+	inodeData       *btree.BTree
+
+	blockGroupDataLocker sync.RWMutex
+	blockGroupData       *btree.BTree
 
 	chunkIDLocker sync.Mutex
 	chunkID       uint64
@@ -111,29 +116,45 @@ func (ms *VolumeKvStateMachine) Apply(data []byte, index uint64) (interface{}, e
 	switch kv.Opt {
 	case OPT_ALLOCATE_INODEID: // allockInodeID
 		atomic.AddUint64(&ms.inodeID, 1)
+
 	case OPT_ALLOCATE_CHUNKID: // allockChunkID
 		atomic.AddUint64(&ms.chunkID, 1)
+
 	case OPT_SET_DENTRY: // set dentryData
 		ms.dentryItem.K = kv.K
 		ms.dentryItem.V = kv.V
+		ms.dentryDataLocker.Lock()
 		ms.dentryData.ReplaceOrInsert(ms.dentryItem)
+		ms.dentryDataLocker.Unlock()
+
 	case OPT_DEL_DENTRY: // del dentryData
 		ms.dentryItem.K = kv.K
+		ms.dentryDataLocker.Lock()
 		ms.dentryData.Delete(ms.dentryItem)
+		ms.dentryDataLocker.Unlock()
+
 	case OPT_SET_INODE: // set inodeData
 		key, _ := strconv.ParseUint(kv.K, 10, 64)
 		ms.inodeItem.K = key
 		ms.inodeItem.V = kv.V
+		ms.inodeDataLocker.Lock()
 		ms.inodeData.ReplaceOrInsert(ms.inodeItem)
+		ms.inodeDataLocker.Unlock()
+
 	case OPT_DEL_INODE: // del inodeData
 		key, _ := strconv.ParseUint(kv.K, 10, 64)
 		ms.inodeItem.K = key
+		ms.inodeDataLocker.Lock()
 		ms.inodeData.Delete(ms.inodeItem)
+		ms.inodeDataLocker.Unlock()
+
 	case OPT_SET_BG: // set OPT_SET_BG
 		key, _ := strconv.ParseUint(kv.K, 10, 64)
 		ms.bgItem.K = key
 		ms.bgItem.V = kv.V
+		ms.blockGroupDataLocker.Lock()
 		ms.blockGroupData.ReplaceOrInsert(ms.bgItem)
+		ms.blockGroupDataLocker.Unlock()
 	}
 
 	ms.applied = index
@@ -148,7 +169,9 @@ func (ms *VolumeKvStateMachine) DentryGet(raftGroupID uint64, key string) ([]byt
 
 	var item btreeinstance.DentryKV
 	item.K = key
+	ms.dentryDataLocker.RLock()
 	newItem := ms.dentryData.Get(item)
+	ms.dentryDataLocker.RUnlock()
 
 	if newItem != nil {
 		return newItem.(btreeinstance.DentryKV).V, nil
@@ -171,10 +194,12 @@ func (ms *VolumeKvStateMachine) DentryGetRange(raftGroupID uint64, minKey string
 	var itemMax btreeinstance.DentryKV
 	itemMax.K = maxKey
 
+	ms.dentryDataLocker.RLock()
 	ms.dentryData.AscendRange(itemMin, itemMax, func(a btree.Item) bool {
 		v = append(v, a.(btreeinstance.DentryKV))
 		return true
 	})
+	ms.dentryDataLocker.RUnlock()
 
 	return v, nil
 }
@@ -232,7 +257,9 @@ func (ms *VolumeKvStateMachine) InodeGet(raftGroupID uint64, key uint64) ([]byte
 
 	var item btreeinstance.InodeKV
 	item.K = key
+	ms.inodeDataLocker.RLock()
 	newItem := ms.inodeData.Get(item)
+	ms.inodeDataLocker.RUnlock()
 
 	if newItem != nil {
 		return newItem.(btreeinstance.InodeKV).V, nil
@@ -295,7 +322,9 @@ func (ms *VolumeKvStateMachine) BGGet(raftGroupID uint64, key uint64) ([]byte, e
 
 	var item btreeinstance.BGKV
 	item.K = key
+	ms.blockGroupDataLocker.RLock()
 	newItem := ms.blockGroupData.Get(item)
+	ms.blockGroupDataLocker.RUnlock()
 
 	if newItem != nil {
 		return newItem.(btreeinstance.BGKV).V, nil

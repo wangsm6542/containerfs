@@ -38,7 +38,8 @@ func StartDataService() {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to listen on:%v", DtAddr.Host))
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.MaxMsgSize(32 * 1024 * 1024))
+
 	dp.RegisterDataNodeServer(s, &DataNodeServer{M2SReplClientStreamCache: make(map[uint64]*M2SReplClientStream), C2MReplServerStreamCache: make(map[uint64]*C2MReplServerStream)})
 	reflection.Register(s)
 	if err := s.Serve(lis); err != nil {

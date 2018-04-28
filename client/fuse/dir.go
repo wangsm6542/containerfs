@@ -111,8 +111,11 @@ func (d *dir) Lookup(ctx context.Context, req *bfuse.LookupRequest, resp *bfuse.
 
 	logger.Debug("Dir Lookup %v in dir %v", req.Name, d.name)
 	resp.EntryValid = utils.FUSE_LOOKUP_CACHE_LIFE
-	if a, ok := d.active[req.Name]; ok {
-		return a.node, nil
+
+	if utils.FUSE_LOOKUP_CACHE_LIFE != 0*time.Second {
+		if a, ok := d.active[req.Name]; ok {
+			return a.node, nil
+		}
 	}
 
 	ret, inodeType, inode := d.fs.cfs.StatDirect(d.inode, req.Name)
@@ -289,6 +292,9 @@ func (d *dir) Mkdir(ctx context.Context, req *bfuse.MkdirRequest) (fs.Node, erro
 	}
 	if ret == 17 {
 		return nil, bfuse.Errno(syscall.EEXIST)
+	}
+	if ret == utils.ENO_NOTEXIST {
+		return nil, bfuse.Errno(syscall.EIO)
 	}
 
 	logger.Debug("Mkdir end , inode %v name %v parentino %v parentname %v", inode, req.Name, d.inode, d.name)

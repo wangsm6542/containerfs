@@ -62,7 +62,8 @@ type wBuffer struct {
 
 // chanData is a channel for asynchronous writing
 type chanData struct {
-	data []byte
+	flushFlag bool
+	data      []byte
 }
 
 // Chunk to store state of current writing chunk
@@ -108,6 +109,7 @@ type CFile struct {
 	convergeFlushCh chan *struct{}
 	Closing         bool
 	CloseSignal     chan struct{}
+	FlushSignal     chan struct{}
 
 	CurChunk *Chunk
 
@@ -673,7 +675,7 @@ func (cfile *CFile) appendWrite(buf []byte, length int32, needFlush bool) (ret i
 
 	ret = length
 
-	data := &chanData{}
+	data := &chanData{flushFlag: needFlush}
 	data.data = append(data.data, buf...)
 	select {
 	case <-cfile.WriteErrSignal:
@@ -699,12 +701,8 @@ func (cfile *CFile) append2Converge(buf []byte, length int32, needFlush bool) (r
 		cfile.convergeLocker.Unlock()
 		return length
 	}
-	if bufferLen == 0 {
-		cfile.convergeLocker.Unlock()
-		return 0
-	}
 
-	data := &chanData{}
+	data := &chanData{flushFlag: needFlush}
 	data.data = append(data.data, cfile.convergeBuffer.Next(cfile.convergeBuffer.Len())...)
 
 	select {
@@ -732,21 +730,36 @@ func (cfile *CFile) WriteThread() {
 					continue
 				}
 
-				newData := &Data{}
-				newData.ID = atomic.AddUint64(&cfile.atomicNum, 1)
-				newData.DataBuf = new(bytes.Buffer)
-				newData.DataBuf.Write(chanData.data)
-				newData.Status = 1
+				if len(chanData.data) != 0 {
+					newData := &Data{}
+					newData.ID = atomic.AddUint64(&cfile.atomicNum, 1)
+					newData.DataBuf = new(bytes.Buffer)
+					newData.DataBuf.Write(chanData.data)
+					newData.Status = 1
 
-				if err := cfile.writeHandler(newData); err != nil {
-					logger.Error("WriteThread file %v writeHandler err %v !", cfile.Name, err)
-					cfile.Status = FILE_ERROR
-					cfile.WriteErrSignal <- true
+					if err := cfile.writeHandler(newData); err != nil {
+						logger.Error("WriteThread file %v writeHandler err %v !", cfile.Name, err)
+						cfile.Status = FILE_ERROR
+						cfile.WriteErrSignal <- true
+					}
+				}
+
+				var ti uint32
+				if chanData.flushFlag {
+
+					for cfile.Status == FILE_NORMAL {
+						if len(cfile.DataCache) == 0 {
+							break
+						}
+						ti++
+						time.Sleep(time.Millisecond * 5)
+					}
+
+					cfile.FlushSignal <- struct{}{}
 				}
 
 			} else {
 
-				logger.Debug("WriteThread file %v recv channel close, wait DataCache...", cfile.Name)
 				var ti uint32
 				for cfile.Status == FILE_NORMAL {
 					if len(cfile.DataCache) == 0 {
@@ -755,7 +768,6 @@ func (cfile *CFile) WriteThread() {
 					ti++
 					time.Sleep(time.Millisecond * 5)
 				}
-				logger.Debug("WriteThread file %v wait DataCache == 0 done. loop times: %v", cfile.Name, ti)
 
 				if cfile.CurChunk != nil {
 					if cfile.CurChunk.ChunkWriteStream != nil {
@@ -776,7 +788,7 @@ func (cfile *CFile) writeHandler(newData *Data) error {
 
 	length := newData.DataBuf.Len()
 
-	logger.Debug("writeHandler: file %v, num:%v,  length: %v, \n", cfile.Name, cfile.atomicNum, length)
+	// logger.Debug("writeHandler: file %v, num:%v,  length: %v, \n", cfile.Name, cfile.atomicNum, length)
 
 ALLOCATECHUNK:
 
@@ -1163,17 +1175,6 @@ func (cfile *CFile) updateChunkSize(chunkinfo *mp.ChunkInfoWithBG, length int32)
 	cfile.FileSize += int64(length)
 }
 
-// Sync provides the API to sync file
-func (cfile *CFile) Sync() int32 {
-	if cfile.Status != FILE_NORMAL {
-		return -1
-	}
-
-	cfile.appendWrite(nil, 0, true)
-
-	return 0
-}
-
 // Flush provides the API to flush file
 func (cfile *CFile) Flush() int32 {
 	if cfile.isWrite == false {
@@ -1183,9 +1184,8 @@ func (cfile *CFile) Flush() int32 {
 	if cfile.Status != FILE_NORMAL {
 		return -1
 	}
-
 	cfile.appendWrite(nil, 0, true)
-
+	<-cfile.FlushSignal
 	return 0
 }
 
@@ -1193,12 +1193,11 @@ func (cfile *CFile) Flush() int32 {
 func (cfile *CFile) CloseWrite() int32 {
 
 	cfile.appendWrite(nil, 0, true)
+	<-cfile.FlushSignal
 
 	cfile.Closing = true
-	logger.Debug("CloseWrite close cfile.DataQueue")
 	close(cfile.DataQueue)
 	<-cfile.CloseSignal
-	logger.Debug("CloseWrite recv CloseSignal!")
 
 	return 0
 }

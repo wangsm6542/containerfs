@@ -508,6 +508,7 @@ func (cfs *CFS) CreateFileDirect(pinode uint64, name string, flags int) (int32, 
 		DataCache:        make(map[uint64]*Data),
 		DataQueue:        make(chan *chanData, 1),
 		CloseSignal:      make(chan struct{}, 10),
+		FlushSignal:      make(chan struct{}, 10),
 		WriteErrSignal:   make(chan bool, 10),
 		DataConn:         make(map[string]*grpc.ClientConn),
 		errDataNodeCache: make(map[string]bool),
@@ -553,6 +554,7 @@ func (cfs *CFS) OpenFileDirect(pinode uint64, name string, flags int) (int32, *C
 		DataCache:        make(map[uint64]*Data),
 		DataQueue:        make(chan *chanData, 1),
 		CloseSignal:      make(chan struct{}, 10),
+		FlushSignal:      make(chan struct{}, 10),
 		WriteErrSignal:   make(chan bool, 2),
 		DataConn:         make(map[string]*grpc.ClientConn),
 		errDataNodeCache: make(map[string]bool),
@@ -613,7 +615,7 @@ func (cfs *CFS) createFileDirect(pinode uint64, name string) (int32, uint64) {
 		}
 	}
 
-	logger.Debug("createFileDirect  mc.CreateFileDirect failed ret %v", pCreateFileDirectAck.Ret)
+	logger.Debug("createFileDirect  mc.CreateFileDirect ret %v", pCreateFileDirectAck.Ret)
 
 	if pCreateFileDirectAck.Ret == 1 {
 		return 1, 0

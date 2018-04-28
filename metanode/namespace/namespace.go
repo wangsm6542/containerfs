@@ -290,8 +290,12 @@ func (ns *nameSpace) CreateDirDirect(pinode uint64, name string) (int32, uint64)
 	defer catchPanic()
 
 	//to check parent dir's existence
+
 	if _, err := ns.inodeDBGet(pinode); err != nil {
 		if err == raftopt.ErrKeyNotFound {
+
+			logger.Error("CreateDirDirect ErrKeyNotFound , pinode %v name %v ", pinode, name)
+
 			return utils.ENO_NOTEXIST, 0
 		}
 		return 2, 0
@@ -513,7 +517,6 @@ func (ns *nameSpace) DeleteSymLinkDirect(pinode uint64, name string) int32 {
 
 	defer catchPanic()
 
-	ns.symLinkDBDelete(pinode)
 	ns.dentryDBDelete(pinode, name)
 
 	return 0
@@ -871,16 +874,15 @@ func (ns *nameSpace) inodeDBGet(inode uint64) (*mp.InodeInfo, error) {
 	if err != nil {
 		value, err = ns.RaftGroup.InodeGet(ns.RaftGroupID, inode)
 		if err != nil {
+			logger.Error("inodeDBGet failed , inode %v ", inode)
 			return nil, err
 		}
 	}
-
 	inodeInfo := mp.InodeInfo{}
 	err = pbproto.Unmarshal(value, &inodeInfo)
 	if err != nil {
 		return nil, err
 	}
-
 	return &inodeInfo, nil
 }
 
@@ -892,7 +894,6 @@ func (ns *nameSpace) inodeDBSet(inode uint64, v *mp.InodeInfo) error {
 	if err != nil {
 		err := ns.RaftGroup.InodeSet(ns.RaftGroupID, inode, val)
 		if err != nil {
-			logger.Error("InodeSet vol:%v,key:%v,err:%v\n", ns.VolID, inode, err)
 			return err
 		}
 	}
@@ -908,7 +909,6 @@ func (ns *nameSpace) inodeDBDelete(inode uint64) error {
 	if err != nil {
 		err := ns.RaftGroup.InodeDel(ns.RaftGroupID, inode)
 		if err != nil {
-			logger.Error("inodeDBDelete vol:%v,key:%v,err:%v\n", ns.VolID, inode, err)
 			return err
 		}
 	}
@@ -943,7 +943,6 @@ func (ns *nameSpace) symLinkDBSet(inode uint64, v *mp.SymLinkInfo) error {
 	if err != nil {
 		err := ns.RaftGroup.InodeSet(ns.RaftGroupID, inode, val)
 		if err != nil {
-			logger.Error("symLinkDBSet vol:%v,key:%v,err:%v\n", ns.VolID, inode, err)
 			return err
 		}
 	}
@@ -959,7 +958,6 @@ func (ns *nameSpace) symLinkDBDelete(inode uint64) error {
 	if err != nil {
 		err := ns.RaftGroup.InodeDel(ns.RaftGroupID, inode)
 		if err != nil {
-			logger.Error("symLinkDBDelete vol:%v,key:%v,err:%v\n", ns.VolID, inode, err)
 			return err
 		}
 	}
@@ -1025,19 +1023,13 @@ func (ns *nameSpace) dentryGetRange(pinode uint64) (bool, []*mp.DirentN) {
 
 	for _, v := range value {
 		dirent := mp.Dirent{}
-
 		err = pbproto.Unmarshal(v.V, &dirent)
 		if err != nil {
 			return false, []*mp.DirentN{}
 		}
-		logger.Debug("dentryGetRange key %v", v.K)
 		pid, name := decodeKey(v.K)
-		logger.Debug("dentryGetRange decodeKey %v,%v", pid, name)
-
 		direntN := mp.DirentN{Name: name, Inode: dirent.Inode, InodeType: dirent.InodeType}
-
 		direntNs = append(direntNs, &direntN)
-
 	}
 
 	return true, direntNs
@@ -1048,9 +1040,7 @@ func (ns *nameSpace) dentryGetRange(pinode uint64) (bool, []*mp.DirentN) {
 func (ns *nameSpace) dentryDBSet(pinode uint64, name string, inodeType uint32, inode uint64) error {
 
 	dirent := &mp.Dirent{InodeType: inodeType, Inode: inode}
-
 	val, _ := pbproto.Marshal(dirent)
-
 	err := ns.RaftGroup.DentrySet(ns.RaftGroupID, encodeKey(pinode, name), val)
 	if err != nil {
 		err := ns.RaftGroup.DentrySet(ns.RaftGroupID, encodeKey(pinode, name), val)
@@ -1059,7 +1049,6 @@ func (ns *nameSpace) dentryDBSet(pinode uint64, name string, inodeType uint32, i
 			return err
 		}
 	}
-
 	return nil
 
 }
