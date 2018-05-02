@@ -503,7 +503,6 @@ func (ns *nameSpace) DeleteSymLinkDirect(pinode uint64, name string) int32 {
 
 	defer catchPanic()
 
-	ns.symLinkDBDelete(pinode)
 	ns.dentryDBDelete(pinode, name)
 
 	return 0
