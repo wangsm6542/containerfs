@@ -35,6 +35,7 @@ const (
 	ChunkSize      = 64 * 1024 * 1024
 )
 
+//gRPC MaxMsgSize
 const (
 	MaxMsgSize = 4 * 1024 * 1024
 )
