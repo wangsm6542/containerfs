@@ -75,17 +75,17 @@ func RegistryToVolMgr() {
 	defer conn.Close()
 	vc := vp.NewVolMgrClient(conn)
 
-	var datanodeRegistryReq vp.DataNode
-	datanodeRegistryReq.Host = DtAddr.Host
+	var dataNodeRegistryReq vp.DataNode
+	dataNodeRegistryReq.Host = DtAddr.Host
 	diskInfo := utils.DiskUsage(DtAddr.Path)
-	datanodeRegistryReq.Capacity = int32(float64(diskInfo.All) / float64(1024*1024*1024))
-	datanodeRegistryReq.Free = int32(float64(diskInfo.Free) / float64(1024*1024*1024))
-	datanodeRegistryReq.Used = int32(float64(diskInfo.Used) / float64(1024*1024*1024))
-	datanodeRegistryReq.MountPoint = DtAddr.Path
-	datanodeRegistryReq.Tier = DtAddr.Tier
-	datanodeRegistryReq.Status = 0
+	dataNodeRegistryReq.Capacity = int32(float64(diskInfo.All) / float64(1024*1024*1024))
+	dataNodeRegistryReq.Free = int32(float64(diskInfo.Free) / float64(1024*1024*1024))
+	dataNodeRegistryReq.Used = int32(float64(diskInfo.Used) / float64(1024*1024*1024))
+	dataNodeRegistryReq.MountPoint = DtAddr.Path
+	dataNodeRegistryReq.Tier = DtAddr.Tier
+	dataNodeRegistryReq.Status = 0
 
-	ack, err := vc.DataNodeRegistry(context.Background(), &datanodeRegistryReq)
+	ack, err := vc.DataNodeRegistry(context.Background(), &dataNodeRegistryReq)
 	if err != nil {
 		logger.Error("DataNode[%v]: register to VolMgr failed! err %v", DtAddr.Host, err)
 		os.Exit(1)
