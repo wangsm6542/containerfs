@@ -5,4 +5,4 @@
 ![image](doc/logo.png) 
 
 
-ContainerFS is distributed filesystem 
+ContainerFS is a distributed filesystem 
