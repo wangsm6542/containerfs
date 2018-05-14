@@ -95,9 +95,8 @@ message Volume {
     string Tier = 3;
     int32  Copies = 4;
     int32  TotalSize = 5;
-    int32  AllocatedSize = 6;
-    uint64 RGID = 7;
-    repeated uint64 BlockGroups = 8;
+    uint64 RGID = 6;
+    repeated uint64 BlockGroups = 7;
 }
 
 message Vols {

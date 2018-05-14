@@ -92,8 +92,6 @@ func (s *VolMgrServer) VolumeInfos(ctx context.Context, in *vp.VolumeInfosReq) (
 	for _, vv := range v {
 		volume := vp.Volume{}
 		volume.RGID = vv.RGID
-		volume.TotalSize = vv.TotalSize
-		volume.AllocatedSize = vv.AllocatedSize
 		volume.UUID = vv.UUID
 		volume.Name = vv.Name
 		volume.Tier = vv.Tier

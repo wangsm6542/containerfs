@@ -94,13 +94,12 @@ func (vs *VolMgrServer) CreateVol(ctx context.Context, in *vp.CreateVolReq) (*vp
 	}
 
 	vol := &vp.Volume{
-		UUID:          voluuid,
-		Name:          in.VolName,
-		Tier:          in.Tier,
-		Copies:        int32(copies),
-		TotalSize:     in.SpaceQuota,
-		AllocatedSize: blockGroupNum * 5,
-		RGID:          rgID,
+		UUID:      voluuid,
+		Name:      in.VolName,
+		Tier:      in.Tier,
+		Copies:    int32(copies),
+		TotalSize: in.SpaceQuota,
+		RGID:      rgID,
 	}
 
 	dataNodesUsedMap := make(map[string][]uint64)
@@ -271,7 +270,6 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 	}
 
 	vol.TotalSize = vol.TotalSize + in.Space
-	vol.AllocatedSize = vol.AllocatedSize + blockGroupNum*5
 	v, err := vs.Cluster.RaftGroup.DataNodeGetAll(1)
 	if err != nil {
 		logger.Error("GetAllDataNode Info failed:%v for CreateVol", err)
