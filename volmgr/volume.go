@@ -269,9 +269,7 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 		blockGroupNum = in.Space/utils.BlkSizeG + 1
 		in.Space = blockGroupNum * utils.BlkSizeG
 	}
-	if blockGroupNum > 6 {
-		blockGroupNum = 6
-	}
+
 	vol.TotalSize = vol.TotalSize + in.Space
 	vol.AllocatedSize = vol.AllocatedSize + blockGroupNum*5
 	v, err := vs.Cluster.RaftGroup.DataNodeGetAll(1)
