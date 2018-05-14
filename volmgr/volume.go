@@ -73,7 +73,7 @@ func (vs *VolMgrServer) CreateVol(ctx context.Context, in *vp.CreateVolReq) (*vp
 
 	// pass bad status and free not enough datanodes
 	for _, vv := range v {
-		if vv.Status != 0 || vv.Free < 30 || vv.Tier != in.Tier {
+		if vv.Status != 0 || vv.Free < utils.BlkSizeG*2 || vv.Tier != in.Tier {
 			continue
 		}
 		tmp := strings.Split(vv.Host, ":")
@@ -133,9 +133,9 @@ func (vs *VolMgrServer) CreateVol(ctx context.Context, in *vp.CreateVolReq) (*vp
 			dataNode := inuseNodes[ipkey][idx[0]]
 			bg.Hosts = append(bg.Hosts, dataNode.Host)
 			hosts = append(hosts, dataNode.Host)
-			dataNode.Free = dataNode.Free - 5
+			dataNode.Free = dataNode.Free - utils.BlkSizeG
 			dataNodesForUpdate[dataNode.Host] = dataNode
-			if inuseNodes[ipkey][idx[0]].Free < 30 {
+			if inuseNodes[ipkey][idx[0]].Free < utils.BlkSizeG*2 {
 				inuseNodes[ipkey] = append(inuseNodes[ipkey][:idx[0]], inuseNodes[ipkey][idx[0]+1:]...)
 			}
 		}
@@ -283,7 +283,7 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 
 	// pass bad status and free not enough datanodes
 	for _, vv := range v {
-		if vv.Status != 0 || vv.Free < 30 || vv.Tier != vol.Tier {
+		if vv.Status != 0 || vv.Free < utils.BlkSizeG*2 || vv.Tier != vol.Tier {
 			continue
 		}
 		tmp := strings.Split(vv.Host, ":")
@@ -302,6 +302,8 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 	}
 
 	dataNodesUsedMap := make(map[string][]uint64)
+	dataNodesForUpdate := make(map[string]*vp.DataNode)
+
 	var blockGroups []*mp.BlockGroup
 	for i := int32(0); i < blockGroupNum; i++ {
 		bgID, err := vs.Cluster.RaftGroup.BGIDGET(1)
@@ -328,7 +330,11 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 			host := inuseNodes[ipkey][idx[0]].Host
 			bg.Hosts = append(bg.Hosts, host)
 			hosts = append(hosts, host)
-
+			dataNode.Free = dataNode.Free - utils.BlkSizeG
+			dataNodesForUpdate[dataNode.Host] = dataNode
+			if inuseNodes[ipkey][idx[0]].Free < utils.BlkSizeG*2 {
+				inuseNodes[ipkey] = append(inuseNodes[ipkey][:idx[0]], inuseNodes[ipkey][idx[0]+1:]...)
+			}
 		}
 		err = vs.Cluster.RaftGroup.BlockGroupSet(bgID, bg)
 		if err != nil {
@@ -399,6 +405,10 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 			logger.Error("ExpandNameSpace failed: %v", pExpandNameSpaceAck.Ret)
 			return &ack, err
 		}
+	}
+	// update datanode kv data
+	for host, dataNode := range dataNodesForUpdate {
+		vs.Cluster.RaftGroup.DataNodeSet(1, host, dataNode)
 	}
 	return &ack, nil
 }
