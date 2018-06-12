@@ -46,7 +46,6 @@ var _ = fs.NodeReadlinker(&File{})
 
 // Forget to forget the file
 func (f *File) Forget() {
-	logger.Debug("Forget file %v inode %v", f.name, f.inode)
 	if f.parent == nil {
 		return
 	}
@@ -78,15 +77,11 @@ func (f *File) setParentInode(pdir *dir) {
 // Attr to get attributes of the file
 func (f *File) Attr(ctx context.Context, a *bfuse.Attr) error {
 
-	logger.Debug("File Attr")
-
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	logger.Debug("to get attr for %v in type: %v, parent inode: %v", f.name, f.fileType, f.parent.inode)
 	if f.fileType == utils.INODE_FILE {
 
 		ret, inode, inodeInfo := f.parent.fs.cfs.GetInodeInfoDirect(f.parent.inode, f.name)
-		logger.Debug("to get attr from ms %v in type: %v, ret: %v", f.name, f.fileType, ret)
 		if ret == 0 {
 		} else if ret == utils.ENO_NOTEXIST {
 			delete(f.parent.active, f.name)
@@ -105,13 +100,11 @@ func (f *File) Attr(ctx context.Context, a *bfuse.Attr) error {
 		a.Inode = uint64(inode)
 
 		a.BlockSize = BLOCK_SIZE
-		a.Blocks = uint64(math.Ceil(float64(a.Size) / float64(a.BlockSize)))
+		a.Blocks = uint64(math.Ceil(float64(a.Size)/float64(a.BlockSize))) * 8
 		a.Mode = 0666
 		a.Valid = time.Second
 
 	} else if f.fileType == utils.INODE_SYMLINK {
-
-		logger.Debug("att symlink file pinode %v name %v", f.parent.inode, f.name)
 
 		ret, inode := f.parent.fs.cfs.GetSymLinkInfoDirect(f.parent.inode, f.name)
 		if ret == 0 {
@@ -121,8 +114,6 @@ func (f *File) Attr(ctx context.Context, a *bfuse.Attr) error {
 		} else if ret != 0 {
 			return nil
 		}
-
-		logger.Debug("GetSymLinkInfoDirect inode %v", inode)
 
 		a.Inode = uint64(inode)
 		a.Mode = 0666 | os.ModeSymlink
@@ -164,7 +155,6 @@ func (f *File) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.Ope
 			delete(f.parent.active, f.name)
 
 			if int(req.Flags) != os.O_RDONLY && (int(req.Flags)&os.O_CREATE > 0 || int(req.Flags)&^(os.O_WRONLY|os.O_TRUNC) == 0) {
-				logger.Debug("open an deleted file, create new file %v with flag: %v", f.name, req.Flags)
 				ret, f.cfile = f.parent.fs.cfs.CreateFileDirect(f.parent.inode, f.name, int(req.Flags))
 				if ret != 0 {
 					if ret == 17 {
@@ -198,7 +188,6 @@ func (f *File) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.Ope
 
 	logger.Debug("Open end : name %v inode %v Flags %v pinode %v pname %v", f.name, f.inode, req.Flags, f.parent.inode, f.parent.name)
 
-	resp.Flags = bfuse.OpenDirectIO
 	return f, nil
 }
 
@@ -207,6 +196,8 @@ func (f *File) Read(ctx context.Context, req *bfuse.ReadRequest, resp *bfuse.Rea
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	logger.Debug("Read start : name %v ,inode %v, pinode %v pname %v", f.name, f.inode, f.parent.inode, f.parent.name)
 
 	if req.Offset == f.cfile.FileSizeInCache {
 
@@ -230,6 +221,8 @@ func (f *File) Write(ctx context.Context, req *bfuse.WriteRequest, resp *bfuse.W
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	logger.Debug("Write start : name %v ,inode %v, pinode %v pname %v", f.name, f.inode, f.parent.inode, f.parent.name)
 
 	w := f.cfile.Write(req.Data, req.Offset, int32(len(req.Data)))
 	if w != int32(len(req.Data)) {
@@ -308,6 +301,7 @@ func (f *File) Release(ctx context.Context, req *bfuse.ReleaseRequest) error {
 
 // Setattr to set attributes of the file
 func (f *File) Setattr(ctx context.Context, req *bfuse.SetattrRequest, resp *bfuse.SetattrResponse) error {
+	logger.Debug("File Setattr  ...")
 	return nil
 }
 
