@@ -327,6 +327,7 @@ func (vs *VolMgrServer) ExpandVol(ctx context.Context, in *vp.ExpandVolReq) (*vp
 				ack.Ret = -1
 				return &ack, nil
 			}
+			dataNode := inuseNodes[ipkey][idx[0]]
 			host := inuseNodes[ipkey][idx[0]].Host
 			bg.Hosts = append(bg.Hosts, host)
 			hosts = append(hosts, host)
