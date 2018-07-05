@@ -9,6 +9,7 @@ import (
 	"path"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	pbproto "github.com/golang/protobuf/proto"
@@ -428,6 +429,7 @@ func (ns *nameSpace) CreateFileDirect(pinode uint64, name string) (int32, uint64
 	tmpInodeInfo := mp.InodeInfo{
 		AccessTime: time.Now().Unix(),
 		ModifiTime: time.Now().Unix(),
+		Link:       1,
 	}
 
 	err = ns.inodeDBSet(inodeID, &tmpInodeInfo)
@@ -466,11 +468,16 @@ func (ns *nameSpace) DeleteFileDirect(pinode uint64, name string) int32 {
 		return 5
 	}
 
-	for _, v := range inodeInfo.Chunks {
-		ns.releaseBlockGroup(v.BlockGroupID, v.ChunkSize)
+	if inodeInfo.Link == 1 {
+		for _, v := range inodeInfo.Chunks {
+			ns.releaseBlockGroup(v.BlockGroupID, v.ChunkSize)
+		}
+		ns.inodeDBDelete(pDirent.Inode)
+	} else {
+		inodeInfo.Link = inodeInfo.Link - 1
+		ns.inodeDBSet(pDirent.Inode, &inodeInfo)
 	}
 
-	ns.inodeDBDelete(pDirent.Inode)
 	ns.dentryDBDelete(pinode, name)
 
 	return 0
@@ -485,25 +492,25 @@ func (ns *nameSpace) DeleteSymLinkDirect(pinode uint64, name string) int32 {
 }
 
 // GetFileChunksDirect ...
-func (ns *nameSpace) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.ChunkInfo, uint64) {
+func (ns *nameSpace) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.ChunkInfo, uint64, uint32) {
 
 	//to check parent dir's existence
 	if _, err := ns.inodeDBGet(pinode); err != nil {
 		if err == raftopt.ErrKeyNotFound {
-			return utils.ENO_NOTEXIST, nil, 0
+			return utils.ENO_NOTEXIST, nil, 0, 0
 		}
-		return 2, nil, 0
+		return 2, nil, 0, 0
 	}
 
 	gRet, dirent := ns.dentryDBGet(pinode, name)
 	if gRet != 0 {
-		return gRet, nil, 0
+		return gRet, nil, 0, 0
 	}
 	pInodeInfo, err := ns.inodeDBGet(dirent.Inode)
 	if err != nil {
-		return 1, nil, 0
+		return 1, nil, 0, 0
 	}
-	return 0, pInodeInfo.Chunks, dirent.Inode
+	return 0, pInodeInfo.Chunks, dirent.Inode, pInodeInfo.Link
 }
 
 // AllocateChunk ...
@@ -784,7 +791,7 @@ func (ns *nameSpace) SymLink(pInode uint64, newName string, target string) (int3
 	return 0, inodeID
 }
 
-// SymLink ...
+// ReadLink ...
 func (ns *nameSpace) ReadLink(inode uint64) (int32, string) {
 
 	var ret int32
@@ -796,6 +803,33 @@ func (ns *nameSpace) ReadLink(inode uint64) (int32, string) {
 	}
 
 	return 0, symLinkInfo.Target
+}
+
+// Link ...
+func (ns *nameSpace) Link(pInode uint64, newName string, OldInode uint64) int32 {
+
+	oldInodeInfo, err := ns.inodeDBGet(OldInode)
+	if err != nil {
+		if err == raftopt.ErrKeyNotFound {
+			return utils.ENO_NOTEXIST
+		}
+		return 2
+	}
+
+	err = ns.dentryDBSet(pInode, newName, utils.INODE_FILE, OldInode)
+	if err != nil {
+		return 1
+	}
+
+	atomic.AddUint32(&oldInodeInfo.Link, 1)
+
+	err = ns.inodeDBSet(OldInode, oldInodeInfo)
+	if err != nil {
+		ns.dentryDBDelete(pInode, newName)
+		return 1
+	}
+
+	return 0
 }
 
 // AllocateInodeID ...

@@ -98,6 +98,7 @@ func (f *File) Attr(ctx context.Context, a *bfuse.Attr) error {
 			a.Size = uint64(f.cfile.FileSizeInCache)
 		}
 		a.Inode = uint64(inode)
+		a.Nlink = inodeInfo.Link
 
 		a.BlockSize = BLOCK_SIZE
 		a.Blocks = uint64(math.Ceil(float64(a.Size)/float64(a.BlockSize))) * 8
@@ -129,6 +130,7 @@ func (f *File) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.Ope
 	logger.Debug("Open start : name %v inode %v Flags %v pinode %v pname %v", f.name, f.inode, req.Flags, f.parent.inode, f.parent.name)
 
 	if int(req.Flags)&os.O_TRUNC != 0 {
+		logger.Debug("Open OpenFileDirect 0000")
 		return nil, bfuse.Errno(syscall.EPERM)
 	}
 
@@ -146,10 +148,13 @@ func (f *File) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.Ope
 
 	var ret int32
 
+	logger.Debug("Open OpenFileDirect 11111")
+
 	if f.cfile == nil && f.handles == 0 {
 		ret, f.cfile = f.parent.fs.cfs.OpenFileDirect(f.parent.inode, f.name, int(req.Flags))
-
 		if ret == 0 {
+			logger.Debug("Open OpenFileDirect 22222")
+
 		} else if ret == utils.ENO_NOTEXIST {
 			//clean dirty cache in dir map
 			delete(f.parent.active, f.name)
@@ -175,6 +180,8 @@ func (f *File) Open(ctx context.Context, req *bfuse.OpenRequest, resp *bfuse.Ope
 			return nil, bfuse.Errno(syscall.EIO)
 		}
 	} else {
+		logger.Debug("Open OpenFileDirect 33333")
+
 		f.parent.fs.cfs.UpdateOpenFileDirect(f.parent.inode, f.name, f.cfile, int(req.Flags))
 	}
 

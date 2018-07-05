@@ -219,7 +219,7 @@ func main() {
 				fmt.Println("no such inode")
 			} else {
 				fmt.Printf("inode:%v\ninodeinfo:%v\n", inode, inodeinfo)
-				ret, chunkinfo, _ := cfs.GetFileChunksDirect(pinode, flag.Arg(2))
+				ret, chunkinfo, _, _ := cfs.GetFileChunksDirect(pinode, flag.Arg(2))
 				if ret != 0 {
 					fmt.Printf("no chunkinfo")
 				} else {

@@ -32,6 +32,8 @@ service MetaNode {
 
     rpc SymLink(SymLinkReq) returns (SymLinkAck){};
     rpc ReadLink(ReadLinkReq) returns (ReadLinkAck){};
+    rpc Link(LinkReq) returns (LinkAck){};
+
     rpc DeleteSymLinkDirect(DeleteSymLinkDirectReq) returns (DeleteSymLinkDirectAck){};
     rpc GetSymLinkInfoDirect(GetSymLinkInfoDirectReq) returns (GetSymLinkInfoDirectAck){};
 
@@ -208,6 +210,7 @@ message GetFileChunksDirectAck {
     int32 Ret = 1;
     repeated ChunkInfoWithBG ChunkInfos = 2; 
     uint64 Inode = 3;
+    uint32 Link = 4;
 }
 
 message AllocateChunkReq {
@@ -261,6 +264,17 @@ message ReadLinkReq {
 message ReadLinkAck {
     int32 Ret = 1;
     string Target = 2;
+}
+
+message LinkReq {
+    uint64 PInode = 1;
+    string Name = 2;
+    uint64 OldInode = 3;
+    string VolID = 4;
+}
+
+message LinkAck {
+    int32 Ret = 1;
 }
 
 message DeleteSymLinkDirectReq {

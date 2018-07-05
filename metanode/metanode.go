@@ -259,7 +259,7 @@ func (ms *MetaNodeServer) GetFileChunksDirect(ctx context.Context, in *mp.GetFil
 		ack.Ret = ret
 		return &ack, nil
 	}
-	gRet, chunkInfos, inode := nameSpace.GetFileChunksDirect(in.PInode, in.Name)
+	gRet, chunkInfos, inode, link := nameSpace.GetFileChunksDirect(in.PInode, in.Name)
 	if gRet != 0 {
 		ack.Ret = gRet
 		return &ack, nil
@@ -292,6 +292,7 @@ func (ms *MetaNodeServer) GetFileChunksDirect(ctx context.Context, in *mp.GetFil
 
 	ack.Ret = 0
 	ack.Inode = inode
+	ack.Link = link
 
 	return &ack, nil
 }
@@ -350,6 +351,18 @@ func (ms *MetaNodeServer) SymLink(ctx context.Context, in *mp.SymLinkReq) (*mp.S
 		return &ack, nil
 	}
 	ack.Ret, ack.Inode = nameSpace.SymLink(in.PInode, in.Name, in.Target)
+	return &ack, nil
+}
+
+// Link ...
+func (ms *MetaNodeServer) Link(ctx context.Context, in *mp.LinkReq) (*mp.LinkAck, error) {
+	ack := mp.LinkAck{}
+	ret, nameSpace := ns.GetNameSpace(in.VolID)
+	if ret != 0 {
+		ack.Ret = ret
+		return &ack, nil
+	}
+	ack.Ret = nameSpace.Link(in.PInode, in.Name, in.OldInode)
 	return &ack, nil
 }
 

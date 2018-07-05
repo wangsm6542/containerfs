@@ -526,7 +526,7 @@ func (cfs *CFS) OpenFileDirect(pinode uint64, name string, flags int) (int32, *C
 
 	logger.Debug("OpenFileDirect: name: %v, flags: %v\n", name, flags)
 
-	ret, chunkInfos, inode := cfs.GetFileChunksDirect(pinode, name)
+	ret, chunkInfos, inode, _ := cfs.GetFileChunksDirect(pinode, name)
 	if ret != 0 {
 		return ret, nil
 	}
@@ -571,6 +571,7 @@ func (cfs *CFS) OpenFileDirect(pinode uint64, name string, flags int) (int32, *C
 // UpdateOpenFileDirect is the API to update file openning flags
 func (cfs *CFS) UpdateOpenFileDirect(pinode uint64, name string, cfile *CFile, flags int) int32 {
 
+	logger.Debug("UpdateOpenFileDirect ..")
 	cfile.isWrite = int(flags)&os.O_WRONLY != 0 || int(flags)&os.O_RDWR != 0
 
 	if cfile.isWrite {
@@ -667,8 +668,8 @@ func (cfs *CFS) DeleteSymLinkDirect(pinode uint64, name string) int32 {
 // DeleteFileDirect is the API to delete a file
 func (cfs *CFS) DeleteFileDirect(pinode uint64, name string) int32 {
 
-	ret, chunkInfos, _ := cfs.GetFileChunksDirect(pinode, name)
-	if ret == 0 && chunkInfos != nil {
+	ret, chunkInfos, _, link := cfs.GetFileChunksDirect(pinode, name)
+	if ret == 0 && chunkInfos != nil && link == 1 {
 		for _, v1 := range chunkInfos {
 			for _, v2 := range v1.BlockGroupWithHost.Hosts {
 
@@ -730,12 +731,12 @@ func (cfs *CFS) DeleteFileDirect(pinode uint64, name string) int32 {
 }
 
 // GetFileChunksDirect to get chunks' info of the file
-func (cfs *CFS) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.ChunkInfoWithBG, uint64) {
+func (cfs *CFS) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.ChunkInfoWithBG, uint64, uint32) {
 
 	ret := cfs.checkMetaConn()
 	if ret != 0 {
 		logger.Error("GetFileChunksDirect cfs.Conn nil ...")
-		return -1, nil, 0
+		return -1, nil, 0, 0
 	}
 
 	mc := mp.NewMetaNodeClient(cfs.MetaNodeConn)
@@ -753,7 +754,7 @@ func (cfs *CFS) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.Ch
 		ret := cfs.checkMetaConn()
 		if ret != 0 {
 			logger.Error("GetFileChunksDirect cfs.Conn nil ...")
-			return -1, nil, 0
+			return -1, nil, 0, 0
 		}
 
 		mc = mp.NewMetaNodeClient(cfs.MetaNodeConn)
@@ -761,10 +762,10 @@ func (cfs *CFS) GetFileChunksDirect(pinode uint64, name string) (int32, []*mp.Ch
 		pGetFileChunksDirectAck, err = mc.GetFileChunksDirect(ctx, pGetFileChunksDirectReq)
 		if err != nil {
 			logger.Error("GetFileChunks failed,grpc func failed :%v\n", err)
-			return -1, nil, 0
+			return -1, nil, 0, 0
 		}
 	}
-	return pGetFileChunksDirectAck.Ret, pGetFileChunksDirectAck.ChunkInfos, pGetFileChunksDirectAck.Inode
+	return pGetFileChunksDirectAck.Ret, pGetFileChunksDirectAck.ChunkInfos, pGetFileChunksDirectAck.Inode, pGetFileChunksDirectAck.Link
 }
 
 // SymLink is the API to create a new Symlink
@@ -804,6 +805,46 @@ func (cfs *CFS) SymLink(pInode uint64, newName string, target string) (int32, ui
 		}
 	}
 	return pSymLinkAck.Ret, pSymLinkAck.Inode
+
+}
+
+// Link is the API to create a new Link
+func (cfs *CFS) Link(pInode uint64, newName string, OldInode uint64) int32 {
+
+	ret := cfs.checkMetaConn()
+	if ret != 0 {
+		logger.Error("Link cfs.Conn nil ...")
+		return -1
+	}
+
+	mc := mp.NewMetaNodeClient(cfs.MetaNodeConn)
+	pLinkReq := &mp.LinkReq{
+		PInode:   pInode,
+		Name:     newName,
+		OldInode: OldInode,
+		VolID:    cfs.VolID,
+	}
+	ctx, _ := context.WithTimeout(context.Background(), METANODE_TIMEOUT_SECONDS*time.Second)
+	pLinkAck, err := mc.Link(ctx, pLinkReq)
+	if err != nil || pLinkAck.Ret != 0 {
+
+		time.Sleep(time.Second)
+
+		ret := cfs.checkMetaConn()
+		if ret != 0 {
+			logger.Error("Link cfs.Conn nil ...")
+			return -1
+		}
+
+		mc = mp.NewMetaNodeClient(cfs.MetaNodeConn)
+		ctx, _ := context.WithTimeout(context.Background(), METANODE_TIMEOUT_SECONDS*time.Second)
+		pLinkAck, err = mc.Link(ctx, pLinkReq)
+		if err != nil {
+			logger.Error("Link failed,grpc func failed :%v\n", err)
+			return -1
+		}
+	}
+	return pLinkAck.Ret
 
 }
 

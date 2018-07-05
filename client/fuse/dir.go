@@ -54,6 +54,7 @@ var _ fs.NodeRemover = (*dir)(nil)
 var _ fs.NodeRenamer = (*dir)(nil)
 var _ fs.NodeFsyncer = (*dir)(nil)
 var _ fs.NodeSymlinker = (*dir)(nil)
+var _ fs.NodeLinker = (*dir)(nil)
 var _ fs.NodeRequestLookuper = (*dir)(nil)
 var _ fs.HandleReadDirAller = (*dir)(nil)
 
@@ -489,6 +490,31 @@ func (d *dir) Symlink(ctx context.Context, req *bfuse.SymlinkRequest) (fs.Node, 
 	}
 
 	d.active[req.NewName] = &refcount{node: child}
+
+	return child, nil
+}
+
+// NodeLinker to create a new Link
+func (d *dir) Link(ctx context.Context, req *bfuse.LinkRequest, old fs.Node) (fs.Node, error) {
+
+	logger.Debug("Link start pinode %v,newname %v,OldNode %v oldInodeId %v", d.inode, req.NewName, uint64(req.OldNode), old.(*File).inode)
+
+	ret := d.fs.cfs.Link(d.inode, req.NewName, old.(*File).inode)
+	if ret != 0 {
+		logger.Error("Link ret %v,pinode %v,newname %v,oldInodeId %v", ret, d.inode, req.NewName, old.(*File).inode)
+		return nil, bfuse.EPERM
+	}
+
+	child := &File{
+		inode:    old.(*File).inode,
+		name:     req.NewName,
+		parent:   d,
+		fileType: utils.INODE_FILE,
+	}
+
+	d.active[req.NewName] = &refcount{node: child}
+
+	logger.Debug("Link end %v,pinode %v,newname %v,oldInodeId %v", ret, d.inode, req.NewName, old.(*File).inode)
 
 	return child, nil
 }
