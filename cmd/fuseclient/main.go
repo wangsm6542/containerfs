@@ -86,5 +86,6 @@ func main() {
 	err := fuse.Mount(*uuid, *mountPoint, *isReadOnly)
 	if err != nil {
 		fmt.Println("mount failed ...", err)
+		os.Exit(-1)
 	}
 }
